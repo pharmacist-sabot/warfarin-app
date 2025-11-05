@@ -109,7 +109,7 @@ This project is configured for seamless deployment on [Vercel](https://vercel.co
     -   **Framework Preset**: `Vite`
     -   **Build Command**: `bun run build`
     -   **Output Directory**: `dist`
-    -   **Install Command**: `bun install && wasm-pack build ./warfarin_logic --target web`
+    -   **Install Command**: `bun install`
 
     **Crucially, the install command must build the WASM module before Vite builds the frontend.**
 
