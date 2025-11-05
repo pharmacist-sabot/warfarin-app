@@ -1,0 +1,10 @@
+# Ignore everything
+*
+
+# But not these files
+!.gitignore
+!*.js
+!*.ts
+!*.wasm
+!*.json
+!README.md
