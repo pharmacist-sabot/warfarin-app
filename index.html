@@ -1,9 +1,44 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="th">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vite App</title>
+    <title>Warfarin Calculator</title>
+
+    <!-- Fonts: Inter & Prompt -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS (โหลดผ่าน CDN ) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // ตั้งค่า Config ของ Tailwind ให้รู้จักฟอนต์ Prompt
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'Prompt', 'sans-serif'],
+              display: ['Inter', 'Prompt', 'sans-serif'],
+            },
+            colors: {
+              gray: {
+                50: '#F9FAFB',
+                100: '#F3F4F6',
+                200: '#E5E7EB',
+                300: '#D1D5DB',
+                400: '#9CA3AF',
+                500: '#6B7280',
+                600: '#4B5563',
+                700: '#374151',
+                800: '#1F2937',
+                900: '#111827',
+              }
+            }
+          }
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

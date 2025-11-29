@@ -1,30 +1,34 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
-
-// 1. Import ทุกอย่างจาก Rust/WASM package ของเรา
-// อย่าลืมรัน `wasm-pack build ./warfarin_logic --target web` ก่อนนะ
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import init, { generate_suggestions_rust } from '../warfarin_logic/pkg/warfarin_logic.js';
 
 // --- State Management ---
-const previousDose = ref(null);
+const mounted = ref(false); // For entrance animations
 const weeklyDose = ref(null);
 const allowHalf = ref(true);
 const availablePills = ref({ 1: false, 2: true, 3: true, 5: true });
-const specialDayPattern = ref('fri-sun');
-const displayOrder = ref('sun-sat');
+const specialDayPattern = ref('fri-sun'); // Keep internal logic
 const results = ref([]);
-const isLoading = ref(false);
+const loading = ref(false);
 const errorMsg = ref('');
 const wasmReady = ref(false);
+
+// --- Pill Config for UI ---
+const pillTypes = [
+    { mg: 1, colorClass: 'bg-gray-300' },
+    { mg: 2, colorClass: 'bg-orange-300' },
+    { mg: 3, colorClass: 'bg-sky-400' },
+    { mg: 5, colorClass: 'bg-pink-400' }
+];
 
 // --- Appointment State ---
 const appointmentToggle = ref(false);
 const startDate = ref('');
 const endDate = ref('');
 
-// --- Computed Properties ---
+// --- Computed Properties (Logic preserved) ---
 const appointmentInfo = computed(() => {
-    let daysUntilAppointment = 7;
+    let daysUntilAppointment = 7; // Default
     let startDayOfWeek = 0; // 0=Mon, ..., 6=Sun
 
     if (appointmentToggle.value && startDate.value && endDate.value) {
@@ -51,23 +55,29 @@ const appointmentDaysText = computed(() => {
 // --- Logic ---
 const handleCalculation = async () => {
     if (weeklyDose.value === null || weeklyDose.value < 0) {
-        errorMsg.value = 'กรุณากรอกขนาดยาใหม่ที่ถูกต้อง';
+        errorMsg.value = 'กรุณากรอกขนาดยาเป้าหมายให้ถูกต้อง';
         results.value = [];
         return;
     }
-    const selectedPills = Object.keys(availablePills.value).filter(key => availablePills.value[key]);
+
+    // Sort keys to match UI logic (descending generally, but logic handles it)
+    const selectedPills = Object.keys(availablePills.value)
+        .filter(key => availablePills.value[key]);
+
     if (selectedPills.length === 0) {
         errorMsg.value = 'กรุณาเลือกขนาดยาอย่างน้อย 1 ขนาด';
         results.value = [];
         return;
     }
 
-    isLoading.value = true;
+    loading.value = true;
     errorMsg.value = '';
     results.value = [];
 
+    // Simulate small delay for UI feedback feeling
+    await new Promise(r => setTimeout(r, 400));
+
     try {
-        // 2. เตรียมข้อมูลส่งให้ Rust ในรูปแบบที่กำหนดไว้ใน struct
         const input = {
             weekly_dose: parseFloat(weeklyDose.value),
             allow_half: allowHalf.value,
@@ -77,622 +87,422 @@ const handleCalculation = async () => {
             start_day_of_week: appointmentInfo.value.startDayOfWeek,
         };
 
-        // 3. เรียกฟังก์ชัน Rust!
         const rustResults = await generate_suggestions_rust(input);
         results.value = rustResults;
 
         if (rustResults.length === 0) {
-            errorMsg.value = 'ไม่พบตัวเลือกที่เหมาะสมสำหรับขนาดยาที่ต้องการ';
+            errorMsg.value = 'ไม่พบตัวเลือกที่เหมาะสมสำหรับเงื่อนไขนี้ (ลองอนุญาตให้ใช้ครึ่งเม็ด)';
+        } else {
+            nextTick(() => {
+                const resultsEl = document.getElementById('results-section');
+                if (resultsEl) resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
         }
 
     } catch (e) {
         console.error("Error calling Rust WASM function:", e);
-        errorMsg.value = `เกิดข้อผิดพลาด: ${e}`;
+        errorMsg.value = `เกิดข้อผิดพลาดในการคำนวณ: ${e}`;
     } finally {
-        isLoading.value = false;
+        loading.value = false;
     }
 };
 
-// --- Dose Adjustment ---
-const adjustmentPercentages = [-20, -15, -10, -5, 0, 5, 10, 15, 20];
-const setWeeklyDoseAndSuggest = (dose) => {
-    const roundedDose = Math.round(dose * 2) / 2;
-    weeklyDose.value = roundedDose.toFixed(1);
-    // ใช้ nextTick เพื่อให้ UI อัปเดตค่า weeklyDose ก่อนคำนวณ
-    // import { nextTick } from 'vue';
-    // nextTick(() => { handleCalculation(); });
+// --- Dose Adjustment (New UI Style) ---
+const adjustDose = (percent) => {
+    if (!weeklyDose.value) weeklyDose.value = 0;
+    // Base adjustment on current input to act like a calculator
+    let current = parseFloat(weeklyDose.value);
+    if (isNaN(current)) current = 0;
+
+    if (percent === 0) {
+        // "Same" - logic implies keeping it, but maybe rounding it?
+        // In this context, just ensure it's a number
+    } else {
+        let next = current * (1 + percent / 100);
+        weeklyDose.value = Math.round(next * 2) / 2; // Round to nearest 0.5
+    }
 };
 
-// --- Lifecycle Hook ---
+const togglePill = (mg) => {
+    availablePills.value[mg] = !availablePills.value[mg];
+};
+
+// --- Lifecycle & Watchers ---
 onMounted(async () => {
+    // Animation trigger
+    setTimeout(() => { mounted.value = true; }, 100);
+
     try {
         await init();
         wasmReady.value = true;
         console.log('WASM module initialized!');
     } catch (e) {
         console.error("Failed to initialize WASM module", e);
-        errorMsg.value = "ไม่สามารถโหลดโมดูลคำนวณได้ กรุณาลองรีเฟรชหน้าใหม่อีกครั้ง";
+        errorMsg.value = "ไม่สามารถโหลดระบบคำนวณได้ กรุณารีเฟรชหน้าเว็บ";
     }
+
+    // Initialize dates if needed
+    const today = new Date();
+    startDate.value = today.toISOString().split('T')[0];
 });
 
-// --- Watchers ---
-watch(appointmentToggle, (isToggled) => {
-    if (isToggled && !startDate.value) {
-        const today = new Date();
-        startDate.value = today.toISOString().split('T')[0];
-    }
-    if (results.value.length > 0) {
-        handleCalculation();
-    }
-});
-
-const debouncedRecalculate = debounce(() => {
-    if (results.value.length > 0) {
-        handleCalculation();
-    }
-}, 300);
-
-watch([allowHalf, availablePills, specialDayPattern, startDate, endDate], debouncedRecalculate, { deep: true });
-
+// Auto re-calculate when passive settings change (if results exist)
 function debounce(fn, delay) {
     let timeoutID = null;
     return function (...args) {
         clearTimeout(timeoutID);
-        timeoutID = setTimeout(() => {
-            fn(...args);
-        }, delay);
+        timeoutID = setTimeout(() => fn(...args), delay);
     };
 }
 
+const debouncedRecalculate = debounce(() => {
+    if (results.value.length > 0) handleCalculation();
+}, 500);
+
+watch([allowHalf, availablePills, specialDayPattern, startDate, endDate], debouncedRecalculate, { deep: true });
 </script>
 
 <template>
-    <div class="app-container">
-        <div class="main-card">
-            <div class="header-badge">
-                <span>Warfarin คิดแป๊ปเดียว !</span>
+    <div class="min-h-screen flex items-center justify-center py-10 px-4 sm:px-6 relative font-sans text-slate-800">
+
+        <!-- Background Decor -->
+        <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+            <div
+                class="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-blue-100 rounded-full blur-[120px] opacity-60">
             </div>
-            <h1 class="main-title">โปรแกรมคำนวณขนาดยา Warfarin</h1>
-            <p class="powered-by">Powered by Rust 🦀 + Vue.js 💚</p>
-
-            <!-- Canva Embed -->
-            <div class="canva-container">
-                <iframe loading="lazy" class="canva-iframe"
-                    src="https://www.canva.com/design/DAGr4hxyiRI/T8PUUZhf8fgNkFF_EU0iPQ/view?embed"
-                    allowfullscreen="allowfullscreen" allow="fullscreen">
-                </iframe>
+            <div
+                class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-orange-50 rounded-full blur-[100px] opacity-60">
             </div>
-            <a href="https://www.canva.com/design/DAGr4hxyiRI/T8PUUZhf8fgNkFF_EU0iPQ/view?utm_content=DAGr4hxyiRI&amp;utm_campaign=designshare&amp;utm_medium=embeds&amp;utm_source=link"
-                target="_blank" rel="noopener" class="canva-link">
-                Design by Narawit Kamyuang
-            </a>
+        </div>
 
-            <hr class="divider">
+        <div id="app-content" class="w-full max-w-2xl mx-auto relative">
 
-            <!-- Dose Inputs -->
-            <div class="input-grid">
-                <div class="form-group">
-                    <label for="previousDoseInput">ขนาดยาก่อนหน้า (mg/week)</label>
-                    <input type="number" id="previousDoseInput" v-model.number="previousDose" step="0.1" min="0">
+            <!-- Header -->
+            <header class="text-center mb-10 transition-all duration-700 ease-out transform"
+                :class="{ 'translate-y-0 opacity-100': mounted, '-translate-y-4 opacity-0': !mounted }">
+                <div
+                    class="inline-flex items-center justify-center space-x-2 bg-white px-4 py-1.5 rounded-full shadow-sm border border-gray-100 mb-6">
+                    <span class="w-2 h-2 rounded-full"
+                        :class="wasmReady ? 'bg-green-500 animate-pulse' : 'bg-red-400'"></span>
+                    <span class="text-xs font-medium text-gray-500 tracking-wide uppercase">Dose Calculator</span>
                 </div>
-                <div class="form-group">
-                    <label for="weeklyDoseInput">ขนาดยาใหม่ (mg/week)</label>
-                    <input type="number" id="weeklyDoseInput" v-model.number="weeklyDose" step="0.1" min="0"
-                        class="new-dose-input">
-                </div>
-                <div class="checkbox-group-vertical">
-                    <input type="checkbox" id="allowHalf" v-model="allowHalf">
-                    <label for="allowHalf">ให้ใช้ *ครึ่ง* เม็ด</label>
-                </div>
-            </div>
+                <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 mb-2 font-display">
+                    Warfarin
+                </h1>
+                <p class="text-gray-500 text-lg font-light">
+                    Precision Dosing Assistant
+                </p>
+            </header>
 
-            <!-- Pill Selection -->
-            <div class="option-section">
-                <label class="section-label">เลือกขนาดยาที่ใช้คำนวณ</label>
-                <div class="pill-selection-container">
-                    <div v-for="pill in [1, 2, 3, 5]" :key="pill" class="checkbox-group">
-                        <input type="checkbox" :id="`pill-${pill}`" :value="pill" v-model="availablePills[pill]">
-                        <label :for="`pill-${pill}`" class="pill-label">
-                            <span :class="`pill pill-${pill}`"></span> {{ pill }} mg
-                        </label>
+            <!-- Main Card -->
+            <div class="glass-panel rounded-3xl p-8 sm:p-10 mb-8 relative overflow-hidden transition-all duration-700 delay-100"
+                :class="{ 'translate-y-0 opacity-100': mounted, 'translate-y-8 opacity-0': !mounted }">
+
+                <!-- Step 1: Target Dose Input -->
+                <div class="mb-10 text-center">
+                    <label class="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Target Weekly
+                        Dose (mg)</label>
+                    <div class="relative inline-block group">
+                        <input type="number" v-model.number="weeklyDose"
+                            class="input-reset text-6xl sm:text-7xl font-light text-gray-900 placeholder-gray-200 w-full max-w-[300px] border-b-2 border-transparent focus:border-blue-500 transition-colors duration-300 pb-2"
+                            placeholder="0" step="0.5" @keydown.enter="handleCalculation">
+                        <span class="text-xl text-gray-400 absolute top-4 -right-8 font-light">mg</span>
+                    </div>
+
+                    <!-- Quick Adjustments -->
+                    <div class="flex justify-center gap-3 mt-6">
+                        <button @click="adjustDose(-10)"
+                            class="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-sm font-medium hover:bg-red-50 hover:text-red-600 transition-colors scale-tap">-10%</button>
+                        <button @click="adjustDose(0)"
+                            class="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors scale-tap">Same</button>
+                        <button @click="adjustDose(10)"
+                            class="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-sm font-medium hover:bg-green-50 hover:text-green-600 transition-colors scale-tap">+10%</button>
                     </div>
                 </div>
-            </div>
 
-            <hr class="divider">
+                <hr class="border-gray-100 my-8">
 
-            <!-- Dose Adjustment -->
-            <div v-if="previousDose > 0" class="adjustment-section">
-                <h3 class="section-label">ปรับขนาดยาอัตโนมัติ <span class="sub-label">🖱️ (คลิกเพื่อเลือก)</span></h3>
-                <div class="adjustment-grid">
-                    <button v-for="p in adjustmentPercentages" :key="p"
-                        @click="setWeeklyDoseAndSuggest(previousDose * (1 + p / 100))" :class="[
-                            'dose-adjust-btn',
-                            p < 0 ? 'btn-red' : (p === 0 ? 'btn-blue' : 'btn-green')
-                        ]">
-                        <div class="btn-percent">{{ p > 0 ? '+' : '' }}{{ p }}%</div>
-                        <div class="btn-dose">{{ (previousDose * (1 + p / 100)).toFixed(1) }} mg</div>
+                <!-- Step 2: Configuration -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                    <!-- Pill Availability -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Available
+                            Pills</label>
+                        <div class="flex flex-wrap gap-3">
+                            <button v-for="pill in pillTypes" :key="pill.mg" @click="togglePill(pill.mg)"
+                                class="relative group flex items-center gap-3 pl-2 pr-4 py-2 rounded-full border transition-all duration-300 scale-tap"
+                                :class="availablePills[pill.mg] ? 'bg-white border-gray-200 shadow-md ring-1 ring-black/5' : 'bg-gray-50 border-transparent opacity-60 grayscale'">
+                                <!-- Pill Visual -->
+                                <div class="w-8 h-8 rounded-full shadow-inner flex items-center justify-center text-[10px] font-bold text-white/90"
+                                    :class="pill.colorClass">
+                                    {{ pill.mg }}
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900">{{ pill.mg }}
+                                    mg</span>
+
+                                <!-- Checkmark Icon -->
+                                <div v-if="availablePills[pill.mg]"
+                                    class="absolute top-0 right-0 -mt-1 -mr-1 bg-green-500 text-white rounded-full p-0.5 shadow-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Settings & Appointment -->
+                    <div>
+                        <label
+                            class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Settings</label>
+                        <div class="space-y-3">
+                            <!-- Allow Half Pills -->
+                            <label
+                                class="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-white border border-transparent hover:border-gray-100 transition-all cursor-pointer group">
+                                <span class="text-sm text-gray-600 group-hover:text-gray-900">Allow Half Pills
+                                    (ครึ่งเม็ด)</span>
+                                <div
+                                    class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" v-model="allowHalf"
+                                        class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-300 ease-in-out"
+                                        :class="allowHalf ? 'translate-x-5 border-blue-500' : 'translate-x-0 border-gray-300'" />
+                                    <div class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-200 cursor-pointer transition-colors duration-300"
+                                        :class="allowHalf ? 'bg-blue-200' : ''"></div>
+                                </div>
+                            </label>
+
+                            <!-- Appointment Toggle -->
+                            <label
+                                class="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-white border border-transparent hover:border-gray-100 transition-all cursor-pointer group">
+                                <span class="text-sm text-gray-600 group-hover:text-gray-900">Appointment Mode</span>
+                                <div
+                                    class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" v-model="appointmentToggle"
+                                        class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-300 ease-in-out"
+                                        :class="appointmentToggle ? 'translate-x-5 border-blue-500' : 'translate-x-0 border-gray-300'" />
+                                    <div class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-200 cursor-pointer transition-colors duration-300"
+                                        :class="appointmentToggle ? 'bg-blue-200' : ''"></div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appointment Date Inputs (Conditional) -->
+                <transition name="list">
+                    <div v-if="appointmentToggle" class="mt-6 bg-blue-50/50 rounded-2xl p-5 border border-blue-100">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-blue-800 mb-1">Start Date
+                                    (วันที่มา)</label>
+                                <input type="date" v-model="startDate"
+                                    class="w-full bg-white border border-blue-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-blue-800 mb-1">Next Appointment
+                                    (วันนัด)</label>
+                                <input type="date" v-model="endDate"
+                                    class="w-full bg-white border border-blue-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none">
+                            </div>
+                        </div>
+                        <div v-if="appointmentDaysText" class="mt-3 text-center text-sm font-medium text-blue-600">
+                            {{ appointmentDaysText }}
+                        </div>
+                    </div>
+                </transition>
+
+                <!-- Action Button -->
+                <div class="mt-12">
+                    <button @click="handleCalculation" :disabled="loading || !wasmReady"
+                        class="w-full py-4 rounded-2xl bg-[#0071E3] text-white font-semibold text-lg shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:bg-[#0077ED] transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        <span v-if="loading || !wasmReady" class="animate-spin">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                            </svg>
+                        </span>
+                        <span v-else>Generate Regimen</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Show Button -->
-            <div class="button-container">
-                <button @click="handleCalculation" :disabled="!wasmReady || isLoading" class="calculate-btn">
-                    <span v-if="!wasmReady">กำลังโหลด...</span>
-                    <span v-else-if="isLoading">กำลังคำนวณ...</span>
-                    <span v-else>แสดงตัวเลือก</span>
-                </button>
-            </div>
-
-            <hr class="divider">
-
-            <!-- Appointment Section -->
-            <div class="option-section">
-                <div class="checkbox-group justify-center">
-                    <input type="checkbox" id="appointmentToggle" v-model="appointmentToggle">
-                    <label for="appointmentToggle" class="font-bold">คำนวณจำนวนยาตามนัด</label>
+            <!-- Error Message -->
+            <transition name="fade">
+                <div v-if="errorMsg"
+                    class="text-center p-6 bg-red-50 text-red-600 rounded-2xl mb-8 border border-red-100 shadow-sm">
+                    {{ errorMsg }}
                 </div>
-                <p class="help-text">*หากไม่ระบุ จะคำนวณยาที่ใช้ใน 1 สัปดาห์</p>
-
-                <div v-if="appointmentToggle" class="appointment-fields">
-                    <div class="input-grid">
-                        <div class="form-group">
-                            <label for="startDate">วันที่เริ่มต้น (วันที่มา):</label>
-                            <input type="date" id="startDate" v-model="startDate">
-                        </div>
-                        <div>
-                            <label for="endDate">วันนัดครั้งถัดไป:</label>
-                            <input type="date" id="endDate" v-model="endDate">
-                        </div>
-                    </div>
-                    <div v-if="appointmentDaysText" class="days-result" aria-live="polite">{{ appointmentDaysText }}
-                    </div>
-                </div>
-            </div>
-
-            <hr class="divider">
+            </transition>
 
             <!-- Results Section -->
-            <div id="result-container" aria-live="polite">
-                <div v-if="errorMsg" class="error-box">{{ errorMsg }}</div>
-                <div v-for="(option, index) in results" :key="index" class="result-card">
-                    <div class="result-header">ตัวเลือก {{ index + 1 }}: {{ option.description }} (รวม {{
-                        option.weekly_dose_actual.toFixed(1) }} mg/สัปดาห์)</div>
-                    <div v-html="option.weekly_schedule_html"></div>
-                    <div class="result-footer">
-                        <div v-html="option.total_pills_message"></div>
-                    </div>
+            <div v-if="results.length > 0" id="results-section" class="mb-20 scroll-mt-6">
+                <div class="flex items-center justify-between mb-6 px-2">
+                    <h2 class="text-xl font-semibold text-gray-900">Suggested Regimens</h2>
+                    <span class="text-xs font-medium bg-gray-200 text-gray-600 px-2 py-1 rounded-md">{{ results.length
+                        }} Options</span>
                 </div>
+
+                <transition-group name="list" tag="div" class="space-y-4">
+                    <div v-for="(option, index) in results" :key="index"
+                        class="glass-card-white bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+
+                        <!-- Header of Result Card -->
+                        <div
+                            class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-4 border-b border-gray-50">
+                            <div>
+                                <div class="text-xs font-bold text-blue-600 uppercase tracking-wide mb-1">Option {{
+                                    index + 1 }}</div>
+                                <div class="text-gray-900 font-medium text-lg">{{ option.description }}</div>
+                            </div>
+                            <div class="mt-2 sm:mt-0 text-right">
+                                <div class="text-2xl font-bold text-gray-900">{{ option.weekly_dose_actual.toFixed(1) }}
+                                    <span class="text-sm font-normal text-gray-400">mg/wk</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Schedule Grid (Rendered from Rust HTML) -->
+                        <div class="rust-html-content" v-html="option.weekly_schedule_html"></div>
+
+                        <!-- Footer Info -->
+                        <div
+                            class="mt-4 pt-4 border-t border-gray-50 text-sm text-gray-600 bg-gray-50/50 rounded-lg p-3">
+                            <div v-html="option.total_pills_message"></div>
+                        </div>
+                    </div>
+                </transition-group>
             </div>
+
+            <!-- Footer -->
+            <footer class="text-center text-gray-400 text-xs pb-10">
+                <p>Powered by <span class="text-orange-400 font-semibold">Rust WASM</span> + <span
+                        class="text-green-500 font-semibold">Vue 3</span></p>
+                <p class="mt-2 opacity-60">Medical Disclaimer: Tool for professional guidance only.</p>
+            </footer>
 
         </div>
     </div>
 </template>
 
-<style scoped>
-/* --- General Styles & Fonts --- */
-@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap');
-
-:global(body) {
-    margin: 0;
-    background-color: #f3f4f6;
-    font-family: 'Prompt', sans-serif;
+<style>
+/* --- Design Token Overrides & Global Utilities --- */
+:root {
+    --ease-apple: cubic-bezier(0.25, 1, 0.5, 1);
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --shadow-soft: 0 20px 40px -10px rgba(0, 0, 0, 0.05);
 }
 
-.app-container {
-    padding: 1rem;
+body {
+    background-color: #F5F5F7;
+    /* Apple Gray Background */
+    -webkit-font-smoothing: antialiased;
 }
 
-.main-card {
-    max-width: 80rem;
-    /* ~max-w-5xl */
-    margin: 0 auto;
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 1rem;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    position: relative;
+/* --- Custom Components --- */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: var(--shadow-soft);
 }
 
-/* --- Header & Title --- */
-.main-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
-    text-align: center;
-    color: #1e3a8a;
-    /* ~text-blue-800 */
-    background-color: #eff6ff;
-    /* ~bg-blue-50 */
-    padding: 1rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-}
-
-.powered-by {
-    text-align: center;
-    color: #4b5563;
-    margin-top: -1rem;
-    margin-bottom: 1.5rem;
-    font-size: 0.9rem;
-}
-
-.header-badge {
-    position: absolute;
-    top: 1.5rem;
-    right: 1.5rem;
-}
-
-.header-badge span {
-    background-color: #dbeafe;
-    /* ~bg-blue-100 */
-    color: #1d4ed8;
-    /* ~text-blue-700 */
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.625rem;
-    border-radius: 9999px;
-}
-
-.divider {
-    margin: 1.5rem 0;
+.input-reset {
+    background: transparent;
     border: none;
-    border-top: 1px solid #e5e7eb;
-}
-
-/* --- Canva Embed --- */
-.canva-container {
-    position: relative;
-    width: 100%;
-    padding-top: 56.25%;
-    /* 16:9 Aspect Ratio */
-    box-shadow: 0 2px 8px 0 rgba(63, 69, 81, 0.16);
-    margin-top: 1.6em;
-    margin-bottom: 0.9em;
-    overflow: hidden;
-    border-radius: 8px;
-}
-
-.canva-iframe {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    border: none;
-}
-
-.canva-link {
-    display: block;
-    text-align: center;
-    font-size: 0.75rem;
-    color: #6b7280;
-    margin-top: 0.5rem;
-    text-decoration: none;
-}
-
-.canva-link:hover {
-    color: #2563eb;
-}
-
-/* --- Forms & Inputs --- */
-.input-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-}
-
-@media (min-width: 768px) {
-    .input-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.form-group label,
-.checkbox-group label,
-.section-label {
-    color: #374151;
-    font-size: 0.875rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-.form-group input[type="number"],
-.form-group input[type="date"] {
-    width: 100%;
-    border: 1px solid #d1d5db;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
     outline: none;
-    transition: box-shadow 0.2s;
-}
-
-.form-group input:focus {
-    box-shadow: 0 0 0 2px #3b82f6;
-}
-
-.new-dose-input {
-    background-color: #ffedd5;
-    /* ~bg-orange-100 */
-}
-
-.new-dose-input:focus {
-    box-shadow: 0 0 0 2px #f97316;
-}
-
-/* --- Checkboxes & Radios --- */
-.checkbox-group,
-.checkbox-group-vertical {
-    display: flex;
-    align-items: center;
-}
-
-.checkbox-group-vertical {
-    padding-top: 1.75rem;
-}
-
-.checkbox-group input[type="checkbox"] {
-    height: 1.25rem;
-    width: 1.25rem;
-    accent-color: #f97316;
-}
-
-.checkbox-group label,
-.checkbox-group-vertical label {
-    margin-left: 0.5rem;
-    margin-bottom: 0;
-    font-weight: 700;
-}
-
-/* --- Pill Selection --- */
-.option-section {
-    margin: 1rem 0;
-    padding-top: 0.5rem;
-}
-
-.section-label {
-    display: block;
     text-align: center;
-    margin-bottom: 0.5rem;
 }
 
-.pill-selection-container {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
+.scale-tap:active {
+    transform: scale(0.96);
 }
 
-.pill-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
+/* --- Transitions --- */
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.4s var(--ease-apple), transform 0.4s var(--ease-apple);
 }
 
-/* --- Dose Adjustment Buttons --- */
-.adjustment-section {
-    margin: 1rem 0;
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+    transform: translateY(10px);
 }
 
-.sub-label {
-    font-size: 0.875rem;
-    font-weight: 400;
+.list-enter-active,
+.list-leave-active {
+    transition: all 0.5s var(--ease-apple);
 }
 
-.adjustment-grid {
+.list-enter-from,
+.list-leave-to {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* --- Rust HTML Content Overrides --- */
+/* This section styles the HTML returned by Rust to match the new design */
+.rust-html-content .grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+    /* Tailwind handles cols via classes passed from Rust */
 }
 
-@media (min-width: 768px) {
-    .adjustment-grid {
-        grid-template-columns: repeat(5, 1fr);
-    }
+/* Override the day cards from Rust */
+.rust-html-content .rounded-lg {
+    border-radius: 0.75rem !important;
+    /* rounded-xl */
+    border-color: #F3F4F6 !important;
+    /* border-gray-100 */
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    background-color: white !important;
 }
 
-@media (min-width: 1024px) {
-    .adjustment-grid {
-        grid-template-columns: repeat(9, 1fr);
-    }
+/* Stop days styling override */
+.rust-html-content .bg-gray-100 {
+    background-color: #F9FAFB !important;
+    /* gray-50 */
+    opacity: 0.7;
 }
 
-.dose-adjust-btn {
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    transition: background-color 0.15s ease-in-out;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    cursor: pointer;
-}
-
-.dose-adjust-btn:focus {
-    outline: 2px solid #4f46e5;
-    outline-offset: 2px;
-}
-
-.btn-percent {
-    font-weight: 700;
-    font-size: 1.125rem;
-}
-
-.btn-dose {
-    font-size: 0.875rem;
-}
-
-.btn-red {
-    background-color: #fee2e2;
-    color: #991b1b;
-}
-
-.btn-red:hover {
-    background-color: #fecaca;
-}
-
-.btn-blue {
-    background-color: #dbeafe;
-    color: #1e40af;
-}
-
-.btn-blue:hover {
-    background-color: #bfdbfe;
-}
-
-.btn-green {
-    background-color: #d1fae5;
-    color: #065f46;
-}
-
-.btn-green:hover {
-    background-color: #a7f3d0;
-}
-
-/* --- Calculate Button --- */
-.button-container {
-    display: flex;
-    justify-content: center;
-}
-
-.calculate-btn {
-    background-color: #2563eb;
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
-    width: 100%;
-    border: none;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.15s ease-in-out;
-}
-
-@media (min-width: 768px) {
-    .calculate-btn {
-        width: auto;
-    }
-}
-
-.calculate-btn:hover {
-    background-color: #1d4ed8;
-}
-
-.calculate-btn:disabled {
-    background-color: #9ca3af;
-    cursor: not-allowed;
-}
-
-/* --- Appointment --- */
-.font-bold {
-    font-weight: 700;
-}
-
-.justify-center {
-    justify-content: center;
-}
-
-.help-text {
-    text-align: center;
-    font-size: 0.75rem;
-    color: #6b7280;
-    margin-top: 0.25rem;
-}
-
-.appointment-fields {
-    margin-top: 1rem;
-}
-
-.days-result {
-    text-align: center;
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-top: 1rem;
-    color: #374151;
-}
-
-/* --- Results --- */
-#result-container {
-    margin-top: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.error-box {
-    color: #991b1b;
-    background-color: #fee2e2;
-    text-align: center;
-    font-weight: 700;
-    padding: 1rem;
-    border-radius: 0.5rem;
-}
-
-.result-card {
-    border: 1px solid #e5e7eb;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    background-color: #f9fafb;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-}
-
-.result-header {
-    font-weight: 600;
-    color: #1d4ed8;
-    margin-bottom: 0.5rem;
-}
-
-.result-footer {
-    margin-top: 1rem;
-    font-size: 0.875rem;
-    border-top: 1px solid #e5e7eb;
-    padding-top: 0.5rem;
-    color: #374151;
-}
-
-/* --- Footer --- */
-.footer {
-    text-align: right;
-    font-size: 0.75rem;
-    color: #9ca3af;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #e5e7eb;
-}
-
-/* --- Pill Styles (Global) --- */
-:global(.pill) {
-    width: 24px;
-    height: 24px;
-    border-radius: 9999px;
+/* Pill Styling Overrides to match new design */
+.pill {
     display: inline-block;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 9999px;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
     margin: 2px;
+    vertical-align: middle;
 }
 
-:global(.pill-1) {
-    background-color: #E5E7EB;
-    border: 1px solid #D1D5DB;
+.pill-1 {
+    background-color: #D1D5DB;
+    border: 1px solid #E5E7EB;
 }
 
-:global(.pill-2) {
-    background-color: orange;
+/* gray-300 */
+.pill-2 {
+    background-color: #FDBA74;
 }
 
-:global(.pill-3) {
-    background-color: skyblue;
+/* orange-300 */
+.pill-3 {
+    background-color: #38BDF8;
 }
 
-:global(.pill-5) {
-    background-color: pink;
+/* sky-400 */
+.pill-5 {
+    background-color: #F472B6;
 }
 
-:global(.pill-half-left) {
-    clip-path: inset(0 50% 0 0);
+/* pink-400 */
+
+/* Half pill clipping */
+.pill-half-left {
+    clip-path: polygon(0 0, 50% 0, 50% 100%, 0% 100%);
 }
 </style>
