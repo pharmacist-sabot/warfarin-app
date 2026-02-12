@@ -2,14 +2,14 @@
   "name": "warfarin_logic",
   "type": "module",
   "version": "0.1.0",
-  "files": [
-    "warfarin_logic_bg.wasm",
-    "warfarin_logic.js",
-    "warfarin_logic.d.ts"
+  "sideEffects": [
+    "./snippets/*"
   ],
   "main": "warfarin_logic.js",
   "types": "warfarin_logic.d.ts",
-  "sideEffects": [
-    "./snippets/*"
+  "files": [
+    "warfarin_logic.d.ts",
+    "warfarin_logic.js",
+    "warfarin_logic_bg.wasm"
   ]
 }

@@ -10,14 +10,14 @@ The application is designed to assist healthcare professionals by generating mul
 
 ## ✨ Features
 
--   **High-Performance Core**: All complex calculations are handled by a Rust-powered WebAssembly module, offering near-native speed directly in the browser.
--   **Advanced Dosing Algorithms**: Generates both uniform and non-uniform (e.g., special dose days, stop days) weekly regimens.
--   **Smart Option Prioritization**: Results are intelligently sorted based on complexity (e.g., minimizing half-pills, using fewer pill strengths).
--   **Automatic Dose Adjustment**: Quickly calculate new weekly doses based on percentage changes from the previous dose.
--   **Appointment-Based Pill Counting**: Calculates the exact number of pills required until the next appointment date.
--   **Flexible Configuration**: Users can select available pill strengths (1mg, 2mg, 3mg, 5mg) and toggle the use of half-pills.
--   **Interactive UI**: A fully reactive interface built with Vue.js for a seamless user experience.
--   **Zero Backend Dependency**: The entire application runs on the client-side, making it fast, private, and easy to deploy on static hosts.
+- **High-Performance Core**: All complex calculations are handled by a Rust-powered WebAssembly module, offering near-native speed directly in the browser.
+- **Advanced Dosing Algorithms**: Generates both uniform and non-uniform (e.g., special dose days, stop days) weekly regimens.
+- **Smart Option Prioritization**: Results are intelligently sorted based on complexity (e.g., minimizing half-pills, using fewer pill strengths).
+- **Automatic Dose Adjustment**: Quickly calculate new weekly doses based on percentage changes from the previous dose.
+- **Appointment-Based Pill Counting**: Calculates the exact number of pills required until the next appointment date.
+- **Flexible Configuration**: Users can select available pill strengths (1mg, 2mg, 3mg, 5mg) and toggle the use of half-pills.
+- **Interactive UI**: A fully reactive interface built with Vue.js for a seamless user experience.
+- **Zero Backend Dependency**: The entire application runs on the client-side, making it fast, private, and easy to deploy on static hosts.
 
 ## ⚠️ Medical Disclaimer
 
@@ -25,10 +25,10 @@ The application is designed to assist healthcare professionals by generating mul
 
 ## 🛠️ Tech Stack
 
--   **Frontend**: [Vue.js 3](https://vuejs.org/) (with Composition API and Scoped CSS)
--   **Build Tool**: [Vite](https://vitejs.dev/)
--   **Logic Core**: [Rust](https://www.rust-lang.org/) compiled to [WebAssembly](https://webassembly.org/)
--   **Deployment**: [Vercel](https://vercel.com/)
+- **Frontend**: [Vue.js 3](https://vuejs.org/) (with Composition API and Scoped CSS)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Logic Core**: [Rust](https://www.rust-lang.org/) compiled to [WebAssembly](https://webassembly.org/)
+- **Deployment**: [Vercel](https://vercel.com/)
 
 The core principle of this project is to separate concerns: Vue.js manages the user interface and state, while Rust handles the heavy, mission-critical calculations, providing a robust and safe foundation.
 
@@ -55,22 +55,26 @@ You need the following tools installed on your system:
 ### Installation & Local Development
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/pharmacist-sabot/warfarin-app.git
     cd warfarin-app
     ```
 
 2.  **Install frontend dependencies:**
+
     ```bash
     bun install
     ```
 
 3.  **Build the WebAssembly module:**
     This command compiles the Rust code in the `warfarin_logic` directory into a WASM package inside `warfarin_logic/pkg`.
+
     ```bash
     wasm-pack build ./warfarin_logic --target web
     ```
-    *Note: You only need to re-run this command after making changes to the Rust (`.rs`) files.*
+
+    _Note: You only need to re-run this command after making changes to the Rust (`.rs`) files._
 
 4.  **Run the development server:**
     This will start a Vite dev server, typically on `http://localhost:5173`.
@@ -106,10 +110,10 @@ This project is configured for seamless deployment on [Vercel](https://vercel.co
 1.  **Push your code to a GitHub repository.**
 2.  **Import the repository into Vercel.**
 3.  **Configure the build settings:**
-    -   **Framework Preset**: `Vite`
-    -   **Build Command**: `bun run build`
-    -   **Output Directory**: `dist`
-    -   **Install Command**: `bun install`
+    - **Framework Preset**: `Vite`
+    - **Build Command**: `bun run build`
+    - **Output Directory**: `dist`
+    - **Install Command**: `bun install`
 
     **Crucially, the install command must build the WASM module before Vite builds the frontend.**
 

@@ -40,13 +40,12 @@ if (!('encodeInto' in cachedTextEncoder)) {
     view.set(buf);
     return {
       read: arg.length,
-      written: buf.length
+      written: buf.length,
     };
-  }
+  };
 }
 
 function passStringToWasm0(arg, malloc, realloc) {
-
   if (realloc === undefined) {
     const buf = cachedTextEncoder.encode(arg);
     const ptr = malloc(buf.length, 1) >>> 0;
@@ -64,7 +63,8 @@ function passStringToWasm0(arg, malloc, realloc) {
 
   for (; offset < len; offset++) {
     const code = arg.charCodeAt(offset);
-    if (code > 0x7F) break;
+    if (code > 0x7F)
+      break;
     mem[ptr + offset] = code;
   }
 
@@ -110,7 +110,8 @@ function debugString(val) {
     const description = val.description;
     if (description == null) {
       return 'Symbol';
-    } else {
+    }
+    else {
       return `Symbol(${description})`;
     }
   }
@@ -118,7 +119,8 @@ function debugString(val) {
     const name = val.name;
     if (typeof name == 'string' && name.length > 0) {
       return `Function(${name})`;
-    } else {
+    }
+    else {
       return 'Function';
     }
   }
@@ -130,7 +132,7 @@ function debugString(val) {
       debug += debugString(val[0]);
     }
     for (let i = 1; i < length; i++) {
-      debug += ', ' + debugString(val[i]);
+      debug += `, ${debugString(val[i])}`;
     }
     debug += ']';
     return debug;
@@ -140,7 +142,8 @@ function debugString(val) {
   let className;
   if (builtInMatches && builtInMatches.length > 1) {
     className = builtInMatches[1];
-  } else {
+  }
+  else {
     // Failed to match the standard '[object ClassName]'
     return toString.call(val);
   }
@@ -149,8 +152,9 @@ function debugString(val) {
     // JSON.stringify avoids problems with cycles, and is generally much
     // easier than looping through ownProperties of `val`.
     try {
-      return 'Object(' + JSON.stringify(val) + ')';
-    } catch (_) {
+      return `Object(${JSON.stringify(val)})`;
+    }
+    catch (_) {
       return 'Object';
     }
   }
@@ -171,7 +175,8 @@ function addToExternrefTable0(obj) {
 function handleError(f, args) {
   try {
     return f.apply(this, args);
-  } catch (e) {
+  }
+  catch (e) {
     const idx = addToExternrefTable0(e);
     wasm.__wbindgen_exn_store(idx);
   }
@@ -206,14 +211,14 @@ async function __wbg_load(module, imports) {
     if (typeof WebAssembly.instantiateStreaming === 'function') {
       try {
         return await WebAssembly.instantiateStreaming(module, imports);
-
-      } catch (e) {
+      }
+      catch (e) {
         const validResponse = module.ok && EXPECTED_RESPONSE_TYPES.has(module.type);
 
         if (validResponse && module.headers.get('Content-Type') !== 'application/wasm') {
-          console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
-
-        } else {
+          console.warn('`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n', e);
+        }
+        else {
           throw e;
         }
       }
@@ -221,14 +226,14 @@ async function __wbg_load(module, imports) {
 
     const bytes = await module.arrayBuffer();
     return await WebAssembly.instantiate(bytes, imports);
-
-  } else {
+  }
+  else {
     const instance = await WebAssembly.instantiate(module, imports);
 
     if (instance instanceof WebAssembly.Instance) {
       return { instance, module };
-
-    } else {
+    }
+    else {
       return instance;
     }
   }
@@ -238,7 +243,7 @@ function __wbg_get_imports() {
   const imports = {};
   imports.wbg = {};
   imports.wbg.__wbg_Error_e83987f665cf5504 = function (arg0, arg1) {
-    const ret = Error(getStringFromWasm0(arg0, arg1));
+    const ret = new Error(getStringFromWasm0(arg0, arg1));
     return ret;
   };
   imports.wbg.__wbg_Number_bb48ca12f395cd08 = function (arg0) {
@@ -298,8 +303,8 @@ function __wbg_get_imports() {
   imports.wbg.__wbg___wbindgen_string_get_e4f06c90489ad01b = function (arg0, arg1) {
     const obj = arg1;
     const ret = typeof (obj) === 'string' ? obj : undefined;
-    var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len1 = WASM_VECTOR_LEN;
+    const ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
     getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
     getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
   };
@@ -307,10 +312,10 @@ function __wbg_get_imports() {
     throw new Error(getStringFromWasm0(arg0, arg1));
   };
   imports.wbg.__wbg_call_e762c39fa8ea36bf = function () {
-    return handleError(function (arg0, arg1) {
+    return handleError((arg0, arg1) => {
       const ret = arg0.call(arg1);
       return ret;
-    }, arguments)
+    }, arguments);
   };
   imports.wbg.__wbg_done_2042aa2670fb1db1 = function (arg0) {
     const ret = arg0.done;
@@ -325,10 +330,10 @@ function __wbg_get_imports() {
     return ret;
   };
   imports.wbg.__wbg_get_efcb449f58ec27c2 = function () {
-    return handleError(function (arg0, arg1) {
+    return handleError((arg0, arg1) => {
       const ret = Reflect.get(arg0, arg1);
       return ret;
-    }, arguments)
+    }, arguments);
   };
   imports.wbg.__wbg_get_with_ref_key_1dc361bd10053bfe = function (arg0, arg1) {
     const ret = arg0[arg1];
@@ -338,7 +343,8 @@ function __wbg_get_imports() {
     let result;
     try {
       result = arg0 instanceof ArrayBuffer;
-    } catch (_) {
+    }
+    catch (_) {
       result = false;
     }
     const ret = result;
@@ -348,7 +354,8 @@ function __wbg_get_imports() {
     let result;
     try {
       result = arg0 instanceof Uint8Array;
-    } catch (_) {
+    }
+    catch (_) {
       result = false;
     }
     const ret = result;
@@ -383,14 +390,14 @@ function __wbg_get_imports() {
     return ret;
   };
   imports.wbg.__wbg_new_e17d9f43105b08be = function () {
-    const ret = new Array();
+    const ret = [];
     return ret;
   };
   imports.wbg.__wbg_next_020810e0ae8ebcb0 = function () {
-    return handleError(function (arg0) {
+    return handleError((arg0) => {
       const ret = arg0.next();
       return ret;
-    }, arguments)
+    }, arguments);
   };
   imports.wbg.__wbg_next_2c826fe5dfec6b6a = function (arg0) {
     const ret = arg0.next;
@@ -439,20 +446,20 @@ function __wbg_finalize_init(instance, module) {
   cachedDataViewMemory0 = null;
   cachedUint8ArrayMemory0 = null;
 
-
   wasm.__wbindgen_start();
   return wasm;
 }
 
 function initSync(module) {
-  if (wasm !== undefined) return wasm;
-
+  if (wasm !== undefined)
+    return wasm;
 
   if (typeof module !== 'undefined') {
     if (Object.getPrototypeOf(module) === Object.prototype) {
-      ({ module } = module)
-    } else {
-      console.warn('using deprecated parameters for `initSync()`; pass a single object instead')
+      ({ module } = module);
+    }
+    else {
+      console.warn('using deprecated parameters for `initSync()`; pass a single object instead');
     }
   }
 
@@ -468,14 +475,15 @@ function initSync(module) {
 }
 
 async function __wbg_init(module_or_path) {
-  if (wasm !== undefined) return wasm;
-
+  if (wasm !== undefined)
+    return wasm;
 
   if (typeof module_or_path !== 'undefined') {
     if (Object.getPrototypeOf(module_or_path) === Object.prototype) {
-      ({ module_or_path } = module_or_path)
-    } else {
-      console.warn('using deprecated parameters for the initialization function; pass a single object instead')
+      ({ module_or_path } = module_or_path);
+    }
+    else {
+      console.warn('using deprecated parameters for the initialization function; pass a single object instead');
     }
   }
 

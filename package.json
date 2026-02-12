@@ -1,8 +1,8 @@
 {
   "name": "warfarin-app",
+  "type": "module",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
@@ -11,7 +11,9 @@
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
-    "type-check": "vue-tsc --build"
+    "type-check": "vue-tsc --build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "vite-plugin-wasm": "^3.5.0",
@@ -19,11 +21,15 @@
     "warfarin_logic": "file:./warfarin_logic/pkg"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "^7.4.3",
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^22.18.11",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
     "autoprefixer": "^10.4.21",
+    "eslint": "^9.0.0",
+    "eslint-plugin-format": "^1.4.0",
+    "jiti": "^2.6.1",
     "npm-run-all2": "^8.0.4",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.16",

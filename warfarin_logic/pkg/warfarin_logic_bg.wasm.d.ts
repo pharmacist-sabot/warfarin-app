@@ -1,5 +1,5 @@
 /* tslint:disable */
-/* eslint-disable */
+
 export const memory: WebAssembly.Memory;
 export const generate_suggestions_rust: (a: any) => [number, number, number];
 export const __wbindgen_malloc: (a: number, b: number) => number;
