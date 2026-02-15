@@ -23,7 +23,7 @@ const mounted = ref(false);
 const warfarinStore = useWarfarinStore();
 const appointmentStore = useAppointmentStore();
 
-const { allowHalf, availablePills, results } = storeToRefs(warfarinStore);
+const { allowHalf, availablePills, specialDayPattern, results } = storeToRefs(warfarinStore);
 const { appointmentToggle, startDate, endDate } = storeToRefs(appointmentStore);
 
 // --- Lifecycle ---
@@ -44,7 +44,7 @@ const debouncedRecalculate = useDebounce(() => {
 }, 500);
 
 watch(
-  [allowHalf, availablePills, startDate, endDate],
+  [allowHalf, availablePills, specialDayPattern, startDate, endDate],
   debouncedRecalculate,
   { deep: true },
 );

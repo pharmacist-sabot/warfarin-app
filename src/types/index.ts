@@ -6,6 +6,7 @@ export type PillType = {
 export type AvailablePills = Record<number, boolean>;
 
 export type AppointmentInfo = {
+  valid: boolean;
   daysUntilAppointment: number;
   startDayOfWeek: number;
 };

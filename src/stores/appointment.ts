@@ -11,26 +11,32 @@ export const useAppointmentStore = defineStore('appointment', () => {
 
   // --- Getters ---
   const appointmentInfo = computed<AppointmentInfo>(() => {
-    let daysUntilAppointment = 7; // Default
-    let startDayOfWeek = 0; // 0=Mon, ..., 6=Sun
-
     if (appointmentToggle.value && startDate.value && endDate.value) {
       const startDt = new Date(startDate.value);
       const endDt = new Date(endDate.value);
+
       if (endDt > startDt) {
         const timeDiff = endDt.getTime() - startDt.getTime();
-        daysUntilAppointment = Math.max(1, Math.round(timeDiff / (1000 * 3600 * 24)));
+        const daysUntilAppointment = Math.max(1, Math.round(timeDiff / (1000 * 3600 * 24)));
 
         const jsDay = startDt.getDay(); // JS: 0=Sun, 1=Mon...
-        startDayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
+        const startDayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
+
+        return { valid: true, daysUntilAppointment, startDayOfWeek };
       }
+
+      // endDate <= startDate — invalid range
+      return { valid: false, daysUntilAppointment: 0, startDayOfWeek: 0 };
     }
-    return { daysUntilAppointment, startDayOfWeek };
+
+    // Toggle off or dates not yet filled — use defaults
+    return { valid: true, daysUntilAppointment: 7, startDayOfWeek: 0 };
   });
 
   const appointmentDaysText = computed(() => {
     if (
       appointmentToggle.value
+      && appointmentInfo.value.valid
       && appointmentInfo.value.daysUntilAppointment > 0
       && startDate.value
       && endDate.value
@@ -43,7 +49,10 @@ export const useAppointmentStore = defineStore('appointment', () => {
   // --- Actions ---
   function initializeStartDate() {
     const today = new Date();
-    startDate.value = today.toISOString().split('T')[0] ?? '';
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    startDate.value = `${yyyy}-${mm}-${dd}`;
   }
 
   function setStartDate(date: string) {

@@ -15,7 +15,7 @@ function toggle() {
 <template>
   <div
     class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in"
-    @click.prevent="toggle"
+    @click.prevent.stop="toggle"
   >
     <input
       :checked="modelValue" type="checkbox"

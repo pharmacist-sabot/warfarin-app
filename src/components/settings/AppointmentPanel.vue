@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia';
 import { useAppointmentStore } from '@/stores/appointment';
 
 const appointmentStore = useAppointmentStore();
-const { startDate, endDate, appointmentDaysText } = storeToRefs(appointmentStore);
+const { startDate, endDate, appointmentDaysText, appointmentInfo } = storeToRefs(appointmentStore);
 </script>
 
 <template>
@@ -29,7 +29,13 @@ const { startDate, endDate, appointmentDaysText } = storeToRefs(appointmentStore
         >
       </div>
     </div>
-    <div v-if="appointmentDaysText" class="mt-3 text-center text-sm font-medium text-blue-600">
+    <div
+      v-if="!appointmentInfo.valid && startDate && endDate"
+      class="mt-3 text-center text-sm font-medium text-red-500"
+    >
+      วันนัดต้องอยู่หลังวันที่มา
+    </div>
+    <div v-else-if="appointmentDaysText" class="mt-3 text-center text-sm font-medium text-blue-600">
       {{ appointmentDaysText }}
     </div>
   </div>
