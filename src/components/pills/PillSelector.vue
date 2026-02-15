@@ -1,21 +1,14 @@
 <script setup lang="ts">
-type PillType = {
-  mg: number;
-  colorClass: string;
-};
+import { storeToRefs } from 'pinia';
 
-const props = defineProps<{
-  modelValue: Record<number, boolean>;
-  pillTypes: PillType[];
-}>();
+import { PILL_TYPES } from '@/constants/pills';
+import { useWarfarinStore } from '@/stores/warfarin';
 
-const emit = defineEmits<{
-  'update:modelValue': [value: Record<number, boolean>];
-}>();
+const warfarinStore = useWarfarinStore();
+const { availablePills } = storeToRefs(warfarinStore);
 
 function togglePill(mg: number) {
-  const newValue = { ...props.modelValue, [mg]: !props.modelValue[mg] };
-  emit('update:modelValue', newValue);
+  availablePills.value = { ...availablePills.value, [mg]: !availablePills.value[mg] };
 }
 </script>
 
@@ -26,9 +19,9 @@ function togglePill(mg: number) {
     </label>
     <div class="flex flex-wrap gap-3">
       <button
-        v-for="pill in pillTypes" :key="pill.mg"
+        v-for="pill in PILL_TYPES" :key="pill.mg"
         class="relative group flex items-center gap-3 pl-2 pr-4 py-2 rounded-full border transition-all duration-300 scale-tap"
-        :class="modelValue[pill.mg] ? 'bg-white border-gray-200 shadow-md ring-1 ring-black/5' : 'bg-gray-50 border-transparent opacity-60 grayscale'"
+        :class="availablePills[pill.mg] ? 'bg-white border-gray-200 shadow-md ring-1 ring-black/5' : 'bg-gray-50 border-transparent opacity-60 grayscale'"
         @click="togglePill(pill.mg)"
       >
         <!-- Pill Visual -->
@@ -42,7 +35,7 @@ function togglePill(mg: number) {
 
         <!-- Checkmark Icon -->
         <div
-          v-if="modelValue[pill.mg]"
+          v-if="availablePills[pill.mg]"
           class="absolute top-0 right-0 -mt-1 -mr-1 bg-green-500 text-white rounded-full p-0.5 shadow-sm"
         >
           <svg

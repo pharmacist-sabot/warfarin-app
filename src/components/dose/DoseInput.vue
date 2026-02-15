@@ -1,21 +1,18 @@
 <script setup lang="ts">
-const props = defineProps<{
-  modelValue: number | null;
-}>();
+import { storeToRefs } from 'pinia';
 
-const emit = defineEmits<{
-  'update:modelValue': [value: number | null];
-  'calculate': [];
-}>();
+import { useWarfarinStore } from '@/stores/warfarin';
+
+const warfarinStore = useWarfarinStore();
+const { weeklyDose } = storeToRefs(warfarinStore);
 
 function handleInput(event: Event) {
   const target = event.target as HTMLInputElement;
-  const val = target.value === '' ? null : Number.parseFloat(target.value);
-  emit('update:modelValue', val);
+  weeklyDose.value = target.value === '' ? null : Number.parseFloat(target.value);
 }
 
 function adjustDose(percent: number) {
-  let current = props.modelValue ?? 0;
+  let current = weeklyDose.value ?? 0;
   if (Number.isNaN(current))
     current = 0;
 
@@ -25,7 +22,7 @@ function adjustDose(percent: number) {
   }
 
   const next = current * (1 + percent / 100);
-  emit('update:modelValue', Math.round(next * 2) / 2); // Round to nearest 0.5
+  weeklyDose.value = Math.round(next * 2) / 2; // Round to nearest 0.5
 }
 </script>
 
@@ -36,9 +33,9 @@ function adjustDose(percent: number) {
     </label>
     <div class="relative inline-block group">
       <input
-        type="number" :value="modelValue"
+        type="number" :value="weeklyDose"
         class="input-reset text-6xl sm:text-7xl font-light text-gray-900 placeholder-gray-200 w-full max-w-[300px] border-b-2 border-transparent focus:border-blue-500 transition-colors duration-300 pb-2"
-        placeholder="0" step="0.5" @input="handleInput" @keydown.enter="$emit('calculate')"
+        placeholder="0" step="0.5" @input="handleInput" @keydown.enter="warfarinStore.handleCalculation()"
       >
       <span class="text-xl text-gray-400 absolute top-4 -right-8 font-light">mg</span>
     </div>
