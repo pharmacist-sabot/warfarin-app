@@ -2,6 +2,9 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
 import init, { generate_suggestions_rust } from '../warfarin_logic/pkg/warfarin_logic.js';
+import DoseInput from './components/DoseInput.vue';
+import PillSelector from './components/PillSelector.vue';
+import ResultCard from './components/ResultCard.vue';
 
 // --- State Management ---
 const mounted = ref(false); // For entrance animations
@@ -111,29 +114,6 @@ async function handleCalculation() {
   }
 }
 
-// --- Dose Adjustment (New UI Style) ---
-function adjustDose(percent) {
-  if (!weeklyDose.value)
-    weeklyDose.value = 0;
-    // Base adjustment on current input to act like a calculator
-  let current = Number.parseFloat(weeklyDose.value);
-  if (Number.isNaN(current))
-    current = 0;
-
-  if (percent === 0) {
-    // "Same" - logic implies keeping it, but maybe rounding it?
-    // In this context, just ensure it's a number
-  }
-  else {
-    const next = current * (1 + percent / 100);
-    weeklyDose.value = Math.round(next * 2) / 2; // Round to nearest 0.5
-  }
-}
-
-function togglePill(mg) {
-  availablePills.value[mg] = !availablePills.value[mg];
-}
-
 // --- Lifecycle & Watchers ---
 onMounted(async () => {
   // Animation trigger
@@ -194,7 +174,10 @@ watch([allowHalf, availablePills, specialDayPattern, startDate, endDate], deboun
         <div
           class="inline-flex items-center justify-center space-x-2 bg-white px-4 py-1.5 rounded-full shadow-sm border border-gray-100 mb-6"
         >
-          <span class="w-2 h-2 rounded-full" :class="wasmReady ? 'bg-green-500 animate-pulse' : 'bg-red-400'" />
+          <span
+            class="w-2 h-2 rounded-full"
+            :class="wasmReady ? 'bg-green-500 animate-pulse' : 'bg-red-400'"
+          />
           <span class="text-xs font-medium text-gray-500 tracking-wide uppercase">Dose Calculator</span>
         </div>
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 mb-2 font-display">
@@ -211,86 +194,20 @@ watch([allowHalf, availablePills, specialDayPattern, startDate, endDate], deboun
         :class="{ 'translate-y-0 opacity-100': mounted, 'translate-y-8 opacity-0': !mounted }"
       >
         <!-- Step 1: Target Dose Input -->
-        <div class="mb-10 text-center">
-          <label class="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Target Weekly
-            Dose (mg)</label>
-          <div class="relative inline-block group">
-            <input
-              v-model.number="weeklyDose" type="number"
-              class="input-reset text-6xl sm:text-7xl font-light text-gray-900 placeholder-gray-200 w-full max-w-[300px] border-b-2 border-transparent focus:border-blue-500 transition-colors duration-300 pb-2"
-              placeholder="0" step="0.5" @keydown.enter="handleCalculation"
-            >
-            <span class="text-xl text-gray-400 absolute top-4 -right-8 font-light">mg</span>
-          </div>
-
-          <!-- Quick Adjustments -->
-          <div class="flex justify-center gap-3 mt-6">
-            <button
-              class="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-sm font-medium hover:bg-red-50 hover:text-red-600 transition-colors scale-tap"
-              @click="adjustDose(-10)"
-            >
-              -10%
-            </button>
-            <button
-              class="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors scale-tap"
-              @click="adjustDose(0)"
-            >
-              Same
-            </button>
-            <button
-              class="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-sm font-medium hover:bg-green-50 hover:text-green-600 transition-colors scale-tap"
-              @click="adjustDose(10)"
-            >
-              +10%
-            </button>
-          </div>
-        </div>
+        <DoseInput v-model="weeklyDose" @calculate="handleCalculation" />
 
         <hr class="border-gray-100 my-8">
 
         <!-- Step 2: Configuration -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <!-- Pill Availability -->
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Available
-              Pills</label>
-            <div class="flex flex-wrap gap-3">
-              <button
-                v-for="pill in pillTypes" :key="pill.mg"
-                class="relative group flex items-center gap-3 pl-2 pr-4 py-2 rounded-full border transition-all duration-300 scale-tap"
-                :class="availablePills[pill.mg] ? 'bg-white border-gray-200 shadow-md ring-1 ring-black/5' : 'bg-gray-50 border-transparent opacity-60 grayscale'"
-                @click="togglePill(pill.mg)"
-              >
-                <!-- Pill Visual -->
-                <div
-                  class="w-8 h-8 rounded-full shadow-inner flex items-center justify-center text-[10px] font-bold text-white/90"
-                  :class="pill.colorClass"
-                >
-                  {{ pill.mg }}
-                </div>
-                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900">{{ pill.mg }}
-                  mg</span>
-
-                <!-- Checkmark Icon -->
-                <div
-                  v-if="availablePills[pill.mg]"
-                  class="absolute top-0 right-0 -mt-1 -mr-1 bg-green-500 text-white rounded-full p-0.5 shadow-sm"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-              </button>
-            </div>
-          </div>
+          <PillSelector v-model="availablePills" :pill-types="pillTypes" />
 
           <!-- Settings & Appointment -->
           <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Settings</label>
+            <label
+              class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-4"
+            >Settings</label>
             <div class="space-y-3">
               <!-- Allow Half Pills -->
               <label
@@ -372,8 +289,9 @@ watch([allowHalf, availablePills, specialDayPattern, startDate, endDate], deboun
           >
             <span v-if="loading || !wasmReady" class="animate-spin">
               <svg
-                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round"
               >
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
@@ -404,39 +322,7 @@ watch([allowHalf, availablePills, specialDayPattern, startDate, endDate], deboun
         </div>
 
         <transition-group name="list" tag="div" class="space-y-4">
-          <div
-            v-for="(option, index) in results" :key="index"
-            class="glass-card-white bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-          >
-            <!-- Header of Result Card -->
-            <div
-              class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-4 border-b border-gray-50"
-            >
-              <div>
-                <div class="text-xs font-bold text-blue-600 uppercase tracking-wide mb-1">
-                  Option {{
-                    index + 1 }}
-                </div>
-                <div class="text-gray-900 font-medium text-lg">
-                  {{ option.description }}
-                </div>
-              </div>
-              <div class="mt-2 sm:mt-0 text-right">
-                <div class="text-2xl font-bold text-gray-900">
-                  {{ option.weekly_dose_actual.toFixed(1) }}
-                  <span class="text-sm font-normal text-gray-400">mg/wk</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Schedule Grid (Rendered from Rust HTML) -->
-            <div class="rust-html-content" v-html="option.weekly_schedule_html" />
-
-            <!-- Footer Info -->
-            <div class="mt-4 pt-4 border-t border-gray-50 text-sm text-gray-600 bg-gray-50/50 rounded-lg p-3">
-              <div v-html="option.total_pills_message" />
-            </div>
-          </div>
+          <ResultCard v-for="(option, index) in results" :key="index" :option="option" :index="index" />
         </transition-group>
       </div>
 
