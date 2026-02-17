@@ -53,12 +53,41 @@ struct DosageOption {
     total_pill_objects: u32,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct PillRenderData {
+    pub mg: u8,
+    pub count: u8,
+    pub is_half: bool,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct PillLineSummary {
+    pub mg: u8,
+    pub dispensed_count: u32,
+    pub usage_note: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct TotalPillsSummary {
+    pub header: String,
+    pub pill_lines: Vec<PillLineSummary>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DaySchedule {
+    pub day_index: usize,
+    pub total_dose: f64,
+    pub pills: Vec<PillRenderData>,
+    pub is_stop_day: bool,
+    pub is_special_day: bool,
+}
+
 #[derive(Serialize)]
 pub struct FinalOutput {
     pub description: String,
     pub weekly_dose_actual: f64,
-    pub weekly_schedule_html: String,
-    pub total_pills_message: String,
+    pub weekly_schedule: Vec<DaySchedule>,
+    pub total_pills_summary: TotalPillsSummary,
 }
 
 #[wasm_bindgen]
@@ -415,30 +444,43 @@ fn render_option(option: &DosageOption, input: &CalculationInput) -> FinalOutput
     let days_name = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
     let description = option.get_description(&days_name);
 
-    let display_order = [6, 0, 1, 2, 3, 4, 5]; // Sun-Sat default
-    let weekly_schedule_html = format!(
-        "<div class=\"grid grid-cols-4 sm:grid-cols-7 gap-2 mt-4\">{}</div>",
-        display_order
+    let display_order = [6, 0, 1, 2, 3, 4, 5]; // Sun first for display
+    let mut weekly_schedule: Vec<DaySchedule> = Vec::new();
+
+    for &day_idx in &display_order {
+        let combo = match &option.option_type {
+            OptionType::Uniform(c) => c,
+            OptionType::NonUniform(cw) => &cw[day_idx],
+        };
+
+        let is_stop_day = option.stop_days.contains(&day_idx);
+        let is_special_day = option.special_days.contains(&day_idx);
+
+        let total_dose: f64 = combo
             .iter()
-            .map(|&day_idx| {
-                let combo = match &option.option_type {
-                    OptionType::Uniform(c) => c,
-                    OptionType::NonUniform(cw) => &cw[day_idx],
-                };
-                let day_type = if option.stop_days.contains(&day_idx) {
-                    "stop"
-                } else if option.special_days.contains(&day_idx) {
-                    "special"
-                } else {
-                    "normal"
-                };
-                render_day(day_idx, combo, day_type, &days_name)
+            .map(|p| p.mg as f64 * p.count as f64 * if p.half { 0.5 } else { 1.0 })
+            .sum();
+
+        let pills: Vec<PillRenderData> = combo
+            .iter()
+            .map(|p| PillRenderData {
+                mg: p.mg,
+                count: p.count,
+                is_half: p.half,
             })
-            .collect::<String>()
-    );
+            .collect();
+
+        weekly_schedule.push(DaySchedule {
+            day_index: day_idx,
+            total_dose,
+            pills,
+            is_stop_day: is_stop_day || total_dose < FLOAT_TOLERANCE,
+            is_special_day,
+        });
+    }
 
     let total_pills_header = format!("รวมยาถึงวันนัด ({} วัน):", input.days_until_appointment);
-    let pills_needed_message = calculate_total_pills(
+    let pill_lines = calculate_total_pills(
         option,
         input.days_until_appointment,
         input.start_day_of_week,
@@ -447,86 +489,19 @@ fn render_option(option: &DosageOption, input: &CalculationInput) -> FinalOutput
     FinalOutput {
         description,
         weekly_dose_actual: option.weekly_dose_actual,
-        weekly_schedule_html,
-        total_pills_message: format!(
-            "<span class=\"font-bold\">{}</span><br>{}",
-            total_pills_header, pills_needed_message
-        ),
+        weekly_schedule,
+        total_pills_summary: TotalPillsSummary {
+            header: total_pills_header,
+            pill_lines,
+        },
     }
-}
-
-fn render_day(idx: usize, combo: &[Pill], day_type: &str, days_name: &[&str]) -> String {
-    let day_colors = [
-        "bg-yellow-100",
-        "bg-pink-100",
-        "bg-green-100",
-        "bg-orange-200",
-        "bg-sky-100",
-        "bg-purple-100",
-        "bg-red-200",
-    ];
-    let day_dose: f64 = combo
-        .iter()
-        .map(|p| p.mg as f64 * p.count as f64 * if p.half { 0.5 } else { 1.0 })
-        .sum();
-
-    let mut visual_pills = String::new();
-    let mut text_pills_arr = Vec::new();
-    for p in combo {
-        let pill_class = format!("pill pill-{}", p.mg);
-        for _ in 0..p.count {
-            visual_pills.push_str(&format!(
-                "<span class=\"{} {}\"></span>",
-                pill_class,
-                if p.half { "pill-half-left" } else { "" }
-            ));
-        }
-        if p.count > 0 {
-            let pill_count_text = if p.half {
-                "x(ครึ่ง)".to_string()
-            } else {
-                format!("x{}", p.count)
-            };
-            text_pills_arr.push(format!("{} mg {}", p.mg, pill_count_text));
-        }
-    }
-
-    let (container_classes, day_content_html) = if day_type == "stop" || day_dose < FLOAT_TOLERANCE
-    {
-        let classes = "bg-gray-100 border-gray-300";
-        let content = "<div class=\"text-sm text-gray-800\">(0.0 mg)</div><div class=\"flex-grow flex flex-col justify-center items-center my-2 min-h-[30px]\"><div class=\"text-xs text-gray-500\">ไม่มีขนาดยา</div></div>".to_string();
-        (classes, content)
-    } else {
-        let classes = if day_type == "special" {
-            "bg-white border-red-400 border-2"
-        } else {
-            "bg-white border-gray-300"
-        };
-        let text_pills_html = text_pills_arr
-            .iter()
-            .map(|t| format!("<div class=\"text-xs text-gray-600\">{}</div>", t))
-            .collect::<String>();
-        let content = format!(
-            "<div class=\"text-sm text-gray-800\">({:.1} mg)</div><div class=\"flex-grow flex flex-col justify-center items-center my-2 min-h-[30px]\"><div class=\"flex justify-center items-center flex-wrap\">{}</div></div><div>{}</div>",
-            day_dose, if visual_pills.is_empty() { "&nbsp;" } else { &visual_pills }, text_pills_html
-        );
-        (classes, content)
-    };
-
-    format!(
-        "<div class=\"rounded-lg border text-center flex flex-col h-full overflow-hidden {}\"> \
-            <div class=\"font-bold text-gray-800 py-1 {}\">{}</div> \
-            <div class=\"p-2 flex-grow flex flex-col\">{}</div> \
-        </div>",
-        container_classes, day_colors[idx], days_name[idx], day_content_html
-    )
 }
 
 fn calculate_total_pills(
     option: &DosageOption,
     days_until_appointment: u32,
     start_day_of_week: u8,
-) -> String {
+) -> Vec<PillLineSummary> {
     let mut half_pill_counts: HashMap<u8, u32> = HashMap::new();
     let mut whole_pill_counts: HashMap<u8, u32> = HashMap::new();
 
@@ -545,7 +520,7 @@ fn calculate_total_pills(
         }
     }
 
-    let mut message = String::new();
+    let mut lines: Vec<PillLineSummary> = Vec::new();
     for &mg in &[5, 3, 2, 1] {
         let whole_count = *whole_pill_counts.get(&mg).unwrap_or(&0);
         let half_count = *half_pill_counts.get(&mg).unwrap_or(&0);
@@ -554,24 +529,22 @@ fn calculate_total_pills(
 
         let dispensed_pills = whole_count + total_whole_pills_from_halves + remaining_halves;
         if dispensed_pills > 0 {
-            let actual_used = (whole_count + total_whole_pills_from_halves) as f64
-                + (remaining_halves as f64 * 0.5);
-            message.push_str(&format!(
-                "<span class=\"pill pill-{}\"></span> {}mg: {} เม็ด",
-                mg, mg, dispensed_pills
-            ));
-            if remaining_halves > 0 {
-                message.push_str(&format!(" (ใช้จริง {:.1} เม็ด)", actual_used));
-            }
-            message.push_str("<br>");
+            let usage_note = if remaining_halves > 0 {
+                let actual_used = (whole_count + total_whole_pills_from_halves) as f64
+                    + (remaining_halves as f64 * 0.5);
+                format!("(ใช้จริง {:.1} เม็ด)", actual_used)
+            } else {
+                String::new()
+            };
+            lines.push(PillLineSummary {
+                mg,
+                dispensed_count: dispensed_pills,
+                usage_note,
+            });
         }
     }
 
-    if message.is_empty() {
-        "<span>ไม่ต้องจ่ายยา</span>".to_string()
-    } else {
-        message
-    }
+    lines
 }
 
 // --- Logic for getting day indices based on pattern ---
