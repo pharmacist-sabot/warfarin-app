@@ -29,7 +29,7 @@ function getDayHeaderColor(dayIndex: number): string {
 }
 
 function getPillLabel(pill: PillRenderData): string {
-  const countText = pill.is_half ? 'x(ครึ่ง)' : `x${pill.count}`;
+  const countText = pill.is_half ? `x${pill.count}(ครึ่ง)` : `x${pill.count}`;
   return `${pill.mg} mg ${countText}`;
 }
 
@@ -37,10 +37,11 @@ function expandPills(pills: PillRenderData[]): Array<{ mg: number; isHalf: boole
   const expanded: Array<{ mg: number; isHalf: boolean; key: string }> = [];
   for (const pill of pills) {
     for (let i = 0; i < pill.count; i++) {
+      const pos = expanded.length;
       expanded.push({
         mg: pill.mg,
         isHalf: pill.is_half,
-        key: `${pill.mg}-${pill.is_half}-${i}`,
+        key: `${pill.mg}-${pill.is_half}-${pos}`,
       });
     }
   }
@@ -89,8 +90,8 @@ function expandPills(pills: PillRenderData[]): Array<{ mg: number; isHalf: boole
 
         <!-- Day Content -->
         <div class="p-2 flex-grow flex flex-col">
-          <!-- Dose Text -->
-          <div class="text-sm text-gray-800">
+          <!-- Dose Text (only for non-stop days) -->
+          <div v-if="!day.is_stop_day" class="text-sm text-gray-800">
             ({{ day.total_dose.toFixed(1) }} mg)
           </div>
 
@@ -117,8 +118,8 @@ function expandPills(pills: PillRenderData[]): Array<{ mg: number; isHalf: boole
             <!-- Pill Text Labels -->
             <div>
               <div
-                v-for="pill in day.pills" :key="`label-${pill.mg}-${pill.is_half}`"
-                class="text-xs text-gray-600"
+                v-for="(pill, pillIndex) in day.pills"
+                :key="`label-${pill.mg}-${pill.is_half}-${pillIndex}`" class="text-xs text-gray-600"
               >
                 {{ getPillLabel(pill) }}
               </div>
@@ -128,10 +129,24 @@ function expandPills(pills: PillRenderData[]): Array<{ mg: number; isHalf: boole
       </div>
     </div>
 
-    <!-- Footer Info -->
+    <!-- Footer Info (structured rendering, no v-html) -->
     <div class="mt-4 pt-4 border-t border-gray-50 text-sm text-gray-600 bg-gray-50/50 rounded-lg p-3">
-      <!-- eslint-disable-next-line vue/no-v-html -->
-      <div v-html="option.total_pills_message" />
+      <div class="font-bold">
+        {{ option.total_pills_summary.header }}
+      </div>
+      <template v-if="option.total_pills_summary.pill_lines.length > 0">
+        <div
+          v-for="line in option.total_pills_summary.pill_lines" :key="`summary-pill-${line.mg}`"
+          class="flex items-center gap-1 mt-1"
+        >
+          <PillVisual :mg="line.mg" />
+          <span>{{ line.mg }}mg: {{ line.dispensed_count }} เม็ด</span>
+          <span v-if="line.usage_note" class="text-gray-500">{{ line.usage_note }}</span>
+        </div>
+      </template>
+      <div v-else class="mt-1">
+        ไม่ต้องจ่ายยา
+      </div>
     </div>
   </div>
 </template>

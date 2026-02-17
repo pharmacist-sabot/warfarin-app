@@ -34,9 +34,20 @@ export type DaySchedule = {
   is_special_day: boolean;
 };
 
+export type PillLineSummary = {
+  mg: number;
+  dispensed_count: number;
+  usage_note: string;
+};
+
+export type TotalPillsSummary = {
+  header: string;
+  pill_lines: PillLineSummary[];
+};
+
 export type RegimenOption = {
   description: string;
   weekly_dose_actual: number;
   weekly_schedule: DaySchedule[];
-  total_pills_message: string;
+  total_pills_summary: TotalPillsSummary;
 };

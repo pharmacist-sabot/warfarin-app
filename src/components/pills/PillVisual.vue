@@ -12,8 +12,8 @@ defineProps<{
       isHalf ? 'pill-half-left' : '',
     ]"
   >
-    <span class="text-[10px] font-bold text-white/90">
-      {{ isHalf ? '½' : mg }}
+    <span v-if="!isHalf" class="text-[10px] font-bold text-white/90">
+      {{ mg }}
     </span>
   </span>
 </template>

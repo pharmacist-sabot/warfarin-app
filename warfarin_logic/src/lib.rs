@@ -60,6 +60,19 @@ pub struct PillRenderData {
     pub is_half: bool,
 }
 
+#[derive(Serialize, Clone, Debug)]
+pub struct PillLineSummary {
+    pub mg: u8,
+    pub dispensed_count: u32,
+    pub usage_note: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct TotalPillsSummary {
+    pub header: String,
+    pub pill_lines: Vec<PillLineSummary>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DaySchedule {
     pub day_index: usize,
@@ -74,7 +87,7 @@ pub struct FinalOutput {
     pub description: String,
     pub weekly_dose_actual: f64,
     pub weekly_schedule: Vec<DaySchedule>,
-    pub total_pills_message: String,
+    pub total_pills_summary: TotalPillsSummary,
 }
 
 #[wasm_bindgen]
@@ -467,7 +480,7 @@ fn render_option(option: &DosageOption, input: &CalculationInput) -> FinalOutput
     }
 
     let total_pills_header = format!("รวมยาถึงวันนัด ({} วัน):", input.days_until_appointment);
-    let pills_needed_message = calculate_total_pills(
+    let pill_lines = calculate_total_pills(
         option,
         input.days_until_appointment,
         input.start_day_of_week,
@@ -477,10 +490,10 @@ fn render_option(option: &DosageOption, input: &CalculationInput) -> FinalOutput
         description,
         weekly_dose_actual: option.weekly_dose_actual,
         weekly_schedule,
-        total_pills_message: format!(
-            "<span class=\"font-bold\">{}</span><br>{}",
-            total_pills_header, pills_needed_message
-        ),
+        total_pills_summary: TotalPillsSummary {
+            header: total_pills_header,
+            pill_lines,
+        },
     }
 }
 
@@ -488,7 +501,7 @@ fn calculate_total_pills(
     option: &DosageOption,
     days_until_appointment: u32,
     start_day_of_week: u8,
-) -> String {
+) -> Vec<PillLineSummary> {
     let mut half_pill_counts: HashMap<u8, u32> = HashMap::new();
     let mut whole_pill_counts: HashMap<u8, u32> = HashMap::new();
 
@@ -507,7 +520,7 @@ fn calculate_total_pills(
         }
     }
 
-    let mut message = String::new();
+    let mut lines: Vec<PillLineSummary> = Vec::new();
     for &mg in &[5, 3, 2, 1] {
         let whole_count = *whole_pill_counts.get(&mg).unwrap_or(&0);
         let half_count = *half_pill_counts.get(&mg).unwrap_or(&0);
@@ -516,24 +529,22 @@ fn calculate_total_pills(
 
         let dispensed_pills = whole_count + total_whole_pills_from_halves + remaining_halves;
         if dispensed_pills > 0 {
-            let actual_used = (whole_count + total_whole_pills_from_halves) as f64
-                + (remaining_halves as f64 * 0.5);
-            message.push_str(&format!(
-                "<span class=\"pill pill-{}\"></span> {}mg: {} เม็ด",
-                mg, mg, dispensed_pills
-            ));
-            if remaining_halves > 0 {
-                message.push_str(&format!(" (ใช้จริง {:.1} เม็ด)", actual_used));
-            }
-            message.push_str("<br>");
+            let usage_note = if remaining_halves > 0 {
+                let actual_used = (whole_count + total_whole_pills_from_halves) as f64
+                    + (remaining_halves as f64 * 0.5);
+                format!("(ใช้จริง {:.1} เม็ด)", actual_used)
+            } else {
+                String::new()
+            };
+            lines.push(PillLineSummary {
+                mg,
+                dispensed_count: dispensed_pills,
+                usage_note,
+            });
         }
     }
 
-    if message.is_empty() {
-        "<span>ไม่ต้องจ่ายยา</span>".to_string()
-    } else {
-        message
-    }
+    lines
 }
 
 // --- Logic for getting day indices based on pattern ---

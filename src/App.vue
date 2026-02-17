@@ -153,32 +153,4 @@ body {
   opacity: 0;
   transform: translateY(20px);
 }
-
-/* Pill Styling (used by total_pills_message) */
-.pill {
-  display: inline-block;
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: 9999px;
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-  margin: 2px;
-  vertical-align: middle;
-}
-
-.pill-1 {
-  background-color: #d1d5db;
-  border: 1px solid #e5e7eb;
-}
-
-.pill-2 {
-  background-color: #fdba74;
-}
-
-.pill-3 {
-  background-color: #38bdf8;
-}
-
-.pill-5 {
-  background-color: #f472b6;
-}
 </style>
