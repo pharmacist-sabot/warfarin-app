@@ -32,18 +32,19 @@ defineProps<{
 
 /* Color classes mapping based on design system */
 .pill-1 {
-  @apply bg-gray-300 border border-gray-200;
+  background-color: #d1d5db;
+  border: 1px solid #e5e7eb;
 }
 
 .pill-2 {
-  @apply bg-orange-300;
+  background-color: #fdba74;
 }
 
 .pill-3 {
-  @apply bg-sky-400;
+  background-color: #38bdf8;
 }
 
 .pill-5 {
-  @apply bg-pink-400;
+  background-color: #f472b6;
 }
 </style>
