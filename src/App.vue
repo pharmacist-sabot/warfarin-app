@@ -154,24 +154,7 @@ body {
   transform: translateY(20px);
 }
 
-/* --- Rust HTML Content Overrides --- */
-.rust-html-content .grid {
-  display: grid;
-}
-
-.rust-html-content .rounded-lg {
-  border-radius: 0.75rem !important;
-  border-color: #f3f4f6 !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  background-color: white !important;
-}
-
-.rust-html-content .bg-gray-100 {
-  background-color: #f9fafb !important;
-  opacity: 0.7;
-}
-
-/* Pill Styling Overrides */
+/* Pill Styling (used by total_pills_message) */
 .pill {
   display: inline-block;
   width: 28px !important;
@@ -197,9 +180,5 @@ body {
 
 .pill-5 {
   background-color: #f472b6;
-}
-
-.pill-half-left {
-  clip-path: polygon(0 0, 50% 0, 50% 100%, 0% 100%);
 }
 </style>
