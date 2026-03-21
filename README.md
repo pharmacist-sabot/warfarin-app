@@ -1,14 +1,14 @@
 # Warfarin App
 
-[![Powered by Rust + WASM](https://img.shields.io/badge/powered%20by-Rust%20%2B%20WASM-orange?style=for-the-badge&logo=rust)](https://webassembly.org)
-[![Built with Vue.js](https://img.shields.io/badge/built%20with-Vue.js-green?style=for-the-badge&logo=vue.js)](https://vuejs.org/)
-[![Deploy with Vercel](https://img.shields.io/badge/deploy%20with-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
+[![Powered by Rust + WASM](https://img.shields.io/badge/Powered_by-Rust_%2B_WASM-CE412B?logo=rust)](https://webassembly.org)
+[![Built with Vue.js](https://img.shields.io/badge/Built_with-Vue.js-4FC08D?logo=vue.js)](https://vuejs.org/)
+[![Deploy with Vercel](https://img.shields.io/badge/Deploy_with-Vercel-000000?logo=vercel)](https://vercel.com)
 
 A modern, high-performance web application for calculating complex Warfarin dosage regimens. This project uniquely combines a **Vue.js** frontend for a reactive user experience with a powerful **Rust-powered WebAssembly (WASM)** core for all logical computations, ensuring maximum performance, safety, and reliability.
 
 The application is designed to assist healthcare professionals by generating multiple, prioritized dosing options based on various parameters like target weekly dose, available pill strengths, and special dosing patterns.
 
-## ✨ Features
+## Features
 
 - **High-Performance Core**: All complex calculations are handled by a Rust-powered WebAssembly module, offering near-native speed directly in the browser.
 - **Advanced Dosing Algorithms**: Generates both uniform and non-uniform (e.g., special dose days, stop days) weekly regimens.
@@ -19,11 +19,11 @@ The application is designed to assist healthcare professionals by generating mul
 - **Interactive UI**: A fully reactive interface built with Vue.js for a seamless user experience.
 - **Zero Backend Dependency**: The entire application runs on the client-side, making it fast, private, and easy to deploy on static hosts.
 
-## ⚠️ Medical Disclaimer
+## Medical Disclaimer
 
 **This application is intended for educational and demonstration purposes only.** It must **NOT** be used for actual medical decision-making. Warfarin dosage adjustments must always be performed by a qualified healthcare professional. The developers assume no liability for any misuse of this tool.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: [Vue.js 3](https://vuejs.org/) (with Composition API and Scoped CSS)
 - **Build Tool**: [Vite](https://vitejs.dev/)
@@ -32,7 +32,7 @@ The application is designed to assist healthcare professionals by generating mul
 
 The core principle of this project is to separate concerns: Vue.js manages the user interface and state, while Rust handles the heavy, mission-critical calculations, providing a robust and safe foundation.
 
-## 🚀 Getting Started
+## Getting Started
 
 Follow these instructions to get a local copy up and running for development purposes.
 
@@ -84,7 +84,7 @@ You need the following tools installed on your system:
 
 Open your browser and navigate to the provided local URL to see the app in action!
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 .
@@ -103,7 +103,7 @@ Open your browser and navigate to the provided local URL to see the app in actio
 └── README.md             # This file
 ```
 
-## 🌐 Deployment
+## Deployment
 
 This project is configured for seamless deployment on [Vercel](https://vercel.com/).
 
@@ -119,7 +119,7 @@ This project is configured for seamless deployment on [Vercel](https://vercel.co
 
 4.  **Deploy!** Vercel will handle the rest.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
@@ -131,6 +131,6 @@ If you have a suggestion that would make this better, please fork the repo and c
 4.  Push to the Branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
 
-## 📄 License
+## License
 
 This project is distributed under the MIT License.
