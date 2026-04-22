@@ -57,7 +57,7 @@ You need the following tools installed on your system:
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/pharmacist-sabot/warfarin-app.git
+    git clone https://github.com/suradet-ps/warfarin-app.git
     cd warfarin-app
     ```
 
